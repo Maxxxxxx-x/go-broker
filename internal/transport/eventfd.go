@@ -29,8 +29,17 @@ func (event *EventFd) Wake() error {
 
 func DrainEventFd(fd int) {
 	var b [8]byte
-	_, err := syscall.Read(fd, b[:])
-	if err != nil && err != syscall.EAGAIN && err != syscall.EINTR {
-		log.Printf("drain eventfd: %v", err)
+
+	for {
+		n, err := syscall.Read(fd, b[:])
+		if n > 0 {
+			continue
+		}
+		if err == syscall.EAGAIN || err == syscall.EINTR {
+			return
+		}
+		if err != nil {
+			log.Printf("drain eventfd error: %v\n", err)
+		}
 	}
 }
