@@ -24,14 +24,18 @@ func main() {
 
 	fmt.Println("Connected! Send \"goodbye\" to quit.")
 
+	done := make(chan any)
 	go func() {
 		scanner := bufio.NewScanner(conn)
 		for scanner.Scan() {
 			fmt.Printf("Server: %s\n", scanner.Text())
 		}
 		if err := scanner.Err(); err != nil {
-			log.Printf("Read error: %v\n", err)
+			if !strings.Contains(err.Error(), "use of closed network connection") && !strings.Contains(err.Error(), "EOF") {
+				log.Printf("Read error: %v\n", err)
+			}
 		}
+		close(done)
 	}()
 
 	scanner := bufio.NewScanner(os.Stdin)
@@ -48,4 +52,7 @@ func main() {
 	if err := scanner.Err(); err != nil {
 		log.Printf("Input error: %v\n", err)
 	}
+	conn.Close()
+	<-done
+	log.Printf("Disconnected from %s\n", addr)
 }
