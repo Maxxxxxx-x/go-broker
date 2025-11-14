@@ -54,10 +54,15 @@ func (reactor *Reactor) drainResponse() {
 				log.Printf("responded to client fd=%d: %q (%d bytes)\n", resp.Fd, resp.Message[:len(resp.Message)-1], n)
 			}
 
-			if n < len(data) {
-				reactor.pending[resp.Fd] = data[n:]
-				if err := transport.EpollCtlMod(reactor.epFd, resp.Fd, transport.EPOLL_IN|transport.EPOLL_OUT|transport.EPOLL_ET); err != nil {
-					log.Printf("epoll mod err on fd=%d: %v\n", resp.Fd, err)
+			remaining := data[n:]
+			if len(remaining) > 0 {
+				reactor.pending[resp.Fd] = remaining
+				if err = transport.EpollCtlMod(reactor.epFd, resp.Fd, transport.EPOLL_IN|transport.EPOLL_OUT|transport.EPOLL_ET); err != nil {
+					log.Printf("failed to keep epollin and epollout: %v\n", err)
+				}
+			} else {
+				if err := transport.EpollCtlMod(reactor.epFd, resp.Fd, transport.EPOLL_IN|transport.EPOLL_ET); err != nil {
+					log.Printf("failed to rearm epollin: %v\n", err)
 				}
 			}
 		default:

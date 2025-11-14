@@ -54,6 +54,7 @@ func (reactor *Reactor) Run() {
 			}
 
 			if fd == reactor.eventFd {
+				log.Println("draining responses...")
 				transport.DrainEventFd(reactor.eventFd)
 				reactor.drainResponse()
 				continue
@@ -61,13 +62,25 @@ func (reactor *Reactor) Run() {
 
 			if event&syscall.EPOLLOUT != 0 {
 				reactor.write(fd)
-				if _, ok := reactor.buffers[fd]; !ok {
-					continue
-				}
 			}
 
 			if event&(syscall.EPOLLIN|syscall.EPOLLHUP) != 0 {
 				reactor.read(fd)
+			}
+
+			if _, ok := reactor.buffers[fd]; !ok {
+				continue
+			}
+
+			if p, exists := reactor.pending[fd]; exists && len(p) > 0 {
+				err := transport.EpollCtlMod(reactor.epFd, fd, transport.EPOLL_IN|transport.EPOLL_OUT|transport.EPOLL_ET)
+				if err != nil {
+					log.Printf("epoll_ctl error: %v\n", err)
+				} else {
+					if err := transport.EpollCtlAdd(reactor.epFd, fd, transport.EPOLL_IN|transport.EPOLL_ET); err != nil {
+						log.Printf("epoll_ctl error: %v\n", err)
+					}
+				}
 			}
 		}
 	}

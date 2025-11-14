@@ -9,7 +9,7 @@ import (
 )
 
 func (reactor *Reactor) read(fd int) {
-	tmp := make([]byte, 1024)
+	tmp := make([]byte, 4096)
 
 	for {
 		n, err := syscall.Read(fd, tmp)
@@ -24,13 +24,14 @@ func (reactor *Reactor) read(fd int) {
 				}
 				reactor.buffers[fd] = buf
 
+				log.Printf("received from client fd=%d: %q\n", fd, line)
 				select {
 				case reactor.logicChan <- types.Event{Fd: fd, Message: line}:
 				default:
 					log.Printf("logic channel full, dropping message from fd=%d\n", fd)
 				}
 			}
-			return
+			continue
 		}
 
 		if n == 0 {
@@ -40,10 +41,12 @@ func (reactor *Reactor) read(fd int) {
 			return
 		}
 
-		if err != syscall.EAGAIN && err != syscall.EINTR {
-			log.Printf("read error on fd=%d: %v\n", fd, err)
-			reactor.close(fd)
+		if err == syscall.EAGAIN || err == syscall.EINTR {
 			return
 		}
+
+		log.Printf("read error on fd=%d: %v\n", fd, err)
+		reactor.close(fd)
+		return
 	}
 }
