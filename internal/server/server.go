@@ -30,7 +30,7 @@ func Start(port int) error {
 		return err
 	}
 
-	if err := transport.EpollCtlAdd(epfd, eventFd.Fd, transport.EPOLL_IN|transport.EPOLL_ET); err != nil {
+	if err := transport.EpollCtlAdd(epfd, eventFd.Fd, transport.EPOLL_IN); err != nil {
 		return err
 	}
 
