@@ -22,7 +22,6 @@ func main() {
 	defer listener.Close()
 
 	b := broker.New()
-	fmt.Printf("Broker listening on %s\n", listener.Addr())
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
